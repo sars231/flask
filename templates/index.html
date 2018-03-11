@@ -4,6 +4,20 @@
 {% block title %}Flasky{% endblock %}
 
 {% block page_content %}
+<div class='container'>
+    <!-- 渲染flash消息,为什么要使用for循环，因为在之前的请求循环中每次调用flash（）函数时都会生成一个消息，所以可能有多个消息在排队等待显示 
+    get_flashed_messages()函数获取消息在下次调用时不会再次返回，因此flash消息只显示一次，然后就消失了-->
+    {% for message in get_flashed_messages() %}
+    <div class='alert alert-warning'>
+        <button type='button' class='close' data-dismiss='alert'>
+            &times; 
+        </button>
+        {{ message }}
+        {{ get_flashed_messages()[0] }}
+    </div>
+    {% endfor %}
+
+</div>
 <div class='page-header'>
     <h1>Hello,{% if name %}{{ name }}{% else %}Binyubo{% endif %}</h1>
 </div>

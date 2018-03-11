@@ -1,4 +1,4 @@
-from flask import Flask,render_template,redirect,session,url_for
+from flask import Flask,render_template,redirect,session,url_for,flash
 from flask_script import Manager
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
@@ -24,6 +24,10 @@ def index():
     # name = None
     form = NameForm()
     if form.validate_on_submit():
+        old_name = session.get('name')
+        if old_name is not None and old_name != form.name.data:
+            flash('Looks like you have changed your name')
+            #每次提交的名字会和存在会话中的名字进行比较，会话中的名字是前一次在这个表单中提交的数据，如果两个名字不一样，就会调用flash（）函数
         session['name'] = form.name.data   
         return redirect(url_for('index'))#重定向
     return render_template('index.html',current_time=datetime.utcnow(),form=form,name=session.get('name'))#从回话中读取记录的内容
