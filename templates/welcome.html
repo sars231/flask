@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+<!-- 使用Flask-WTF和Flask-Bootstrap渲染表单 -->
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block title %}Flasky{% endblock %}
+
+{% block page_content %}
+<div class='page-header'>
+    <h1>Hello,{% if name %}{{ name }}{% else %}Binyubo{% endif %}</h1>
+    <p>
+        {% if not known %}
+        pleased to meet you!
+        {% else %}
+        happy to see you again!
+        {% endif %}
+    </p>
+</div>
+<div>
+    <p>The local date and time is {{ moment(current_time).format('LLL') }}.</p>
+    <p>That was {{ moment(current_time).fromNow(refresh=True) }}</p>
+    <!-- <form method="POST">
+        把表单渲染成html,
+        {{ form.hidden_tag() }}
+        可以把参数出入渲染字段的函数，会转换成HTML属性
+        {{ form.name.label }}{{ form.name(id='my-text-field') }}
+        {{ form.submit() }}
+    </form> -->
+<!-- 　渲染表格　 -->
+    {{ wtf.quick_form(form) }}
+</div>
+
+{% endblock %}

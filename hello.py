@@ -3,17 +3,44 @@ from flask_script import Manager
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
+from flask_sqlalchemy import SQLAlchemy
 from wtforms import StringField,SubmitField
 from wtforms.validators import DataRequired
 from datetime import datetime
+import os
 
 app = Flask(__name__)
+#配置数据库
+dasedir = os.path.abspath(os.path.dirname(__file__))
+
 # 设置flask-wtf，设置秘钥
 app.config['SECRET_KEY'] = 'hard to guess string'
+app.config['SQLALCHEMY_DATABASE_URI'] =\
+    'sqlite:///'+os.path.join(dasedir,'date.sqlite')
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+
 bootstrap = Bootstrap(app)
 moment = Moment(app)
-
+db = SQLAlchemy(app)
 manager = Manager(app)
+
+#定义模型
+class Role(db.Model):
+    __tablename__ = 'roles'#定义表名称
+    id = db.Column(db.Integer,primary_key=True)
+    name = db.Column(db.String(64),unique=True)
+    users = db.relationship('User',backref='role')
+    def __repr__(self):
+        return '<Role %r>' % self.name
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer,primary_key=True)
+    username = db.Column(db.String(64),unique=True,index=True)
+    role_id = db.Column(db.Integer,db.ForeignKey('roles.id'))#设置外键
+    def __repr__(self):
+        return '<User %r>' % self.username
+
 
 class NameForm(FlaskForm):
     name = StringField('What is your name?',validators=[DataRequired()])
@@ -32,6 +59,23 @@ def index():
         return redirect(url_for('index'))#重定向
     return render_template('index.html',current_time=datetime.utcnow(),form=form,name=session.get('name'))#从回话中读取记录的内容
 
+
+@app.route('/welcome',methods=['GET','POST'])
+def welcome():
+    form = NameForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.name.data).first()
+        if user is None:
+            user = User(username=form.name.data,role_id=3)
+            db.session.add(user)#为什么不需要commit，就可以添加到数据表,session.rollback
+            session['known'] = False
+        else:
+            session['known'] = True
+        session['name'] = form.name.data
+        form.name.data = ''
+        return redirect(url_for('welcome'))
+    return render_template('welcome.html',current_time=datetime.utcnow(),form=form,name=session.get('name'),known=session.get('known',False))
+        
 
 @app.route('/user/<name>')
 def user(name):
