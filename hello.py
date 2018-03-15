@@ -1,9 +1,10 @@
 from flask import Flask,render_template,redirect,session,url_for,flash
-from flask_script import Manager
+from flask_script import Manager,Shell
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate,MigrateCommand
 from wtforms import StringField,SubmitField
 from wtforms.validators import DataRequired
 from datetime import datetime
@@ -22,6 +23,7 @@ app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 bootstrap = Bootstrap(app)
 moment = Moment(app)
 db = SQLAlchemy(app)
+migrate = Migrate(app,db)
 manager = Manager(app)
 
 #定义模型
@@ -67,7 +69,7 @@ def welcome():
         user = User.query.filter_by(username=form.name.data).first()
         if user is None:
             user = User(username=form.name.data,role_id=3)
-            db.session.add(user)#为什么不需要commit，就可以添加到数据表,session.rollback
+            db.session.add(user)#为什么不需要commit，就可以添加到数据表,session.rollback,因为app.config里设置了自动提交
             session['known'] = False
         else:
             session['known'] = True
@@ -88,6 +90,16 @@ def num(number):
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'),404
+
+
+# python shell,在每次运行shell时，都要导入数据库模型和类，为了避免一直这样重复的工作，可以做一些配置，自动导入这些特定的对象
+# 为shell注册一个make_context回调函数
+def make_shell_context():
+    return dict(app=app,db=db,Role=Role,User=User)
+manager.add_command('shell',Shell(make_context=make_shell_context))
+
+manager.add_command('db',MigrateCommand)
+
 
 
 if __name__ == '__main__':
