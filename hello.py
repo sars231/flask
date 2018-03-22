@@ -3,12 +3,15 @@ from flask_script import Manager,Shell
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
+from flask_mail import Mail,Message
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate,MigrateCommand
 from wtforms import StringField,SubmitField
 from wtforms.validators import DataRequired
 from datetime import datetime
+from threading import Thread
 import os
+
 
 app = Flask(__name__)
 #配置数据库
@@ -19,12 +22,38 @@ app.config['SECRET_KEY'] = 'hard to guess string'
 app.config['SQLALCHEMY_DATABASE_URI'] =\
     'sqlite:///'+os.path.join(dasedir,'date.sqlite')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+# 设置flask-mail
+app.config['MAIL_SERVER'] = 'smtp.qq.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 bootstrap = Bootstrap(app)
 moment = Moment(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app,db)
+mail = Mail(app)
 manager = Manager(app)
+
+# 发邮件
+app.config['FLASKY_MAIL_SUBJECT_PREFIX'] = '[Flasky]'
+app.config['FLASKY_MAIL_SENDER'] = '328467238@qq.com'
+app.config['FLASKY_ADMIN'] = os.environ.get('FLASKY_ADMIN')
+
+#定义发邮件函数　增加多线程，将函数移至后台线程中，避免请求过程中不必要的延迟
+def send_async_email(app,msg):
+    with app.app_context():
+        mail.send(msg)
+
+def send_mail(to,subject,template,**kwargs):
+    msg = Message(app.config['FLASKY_MAIL_SUBJECT_PREFIX']+subject,sender=app.config['FLASKY_MAIL_SENDER'],recipients=[to])
+    msg.body = render_template(template+'.txt',**kwargs)
+    msg.html = render_template(template+'.html',**kwargs)
+    thr = Thread(target=send_async_email,args=[app,msg])
+    thr.start()
+    print(msg)
+    return thr
 
 #定义模型
 class Role(db.Model):
@@ -71,6 +100,9 @@ def welcome():
             user = User(username=form.name.data,role_id=3)
             db.session.add(user)#为什么不需要commit，就可以添加到数据表,session.rollback,因为app.config里设置了自动提交
             session['known'] = False
+            if app.config['FLASKY_ADMIN']:
+                print(app.config['FLASKY_ADMIN'])
+                send_mail(app.config['FLASKY_ADMIN'],'New User','new_user',user=user)
         else:
             session['known'] = True
         session['name'] = form.name.data
